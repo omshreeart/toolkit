@@ -5,6 +5,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 import hashlib
 import json
+import shutil
 
 manifest = json.loads(Path('site-manifest.json').read_text())
 source = manifest['source'].rstrip('/') + '/'
@@ -20,6 +21,12 @@ def fetch_file(item):
         raise ValueError('Unsafe release path.')
     target = output.joinpath(*relative.parts)
     target.parent.mkdir(parents=True, exist_ok=True)
+    checked_in = Path(*relative.parts)
+    if checked_in.is_file():
+        data = checked_in.read_bytes()
+        if len(data) == item['size'] and hashlib.sha256(data).hexdigest() == item['sha256']:
+            shutil.copyfile(checked_in, target)
+            return relative.as_posix()
     request = Request(source + quote(relative.as_posix(), safe='/'),
                       headers={'User-Agent': 'HERO-Static-Publisher/1.0'})
     digest = hashlib.sha256()
